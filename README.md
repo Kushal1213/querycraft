@@ -27,7 +27,7 @@ TextToSQLConvertor is a powerful and intuitive application that bridges the gap 
 5. Results are displayed to the user on the UI.
 
 ## Project Structure
-```
+`````
 
 TextToSQLConvertor/
 |
