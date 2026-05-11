@@ -62,11 +62,11 @@ def main():
     selection = st.sidebar.radio("Go to", pages)
 
     if selection == "Home":
-        st.markdown("<h1 style='color:#4CAF50;'>Welcome to IntelliSQL!</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='color:#4CAF50;'>Welcome to QueryCraft!</h1>", unsafe_allow_html=True)
         st.markdown("""
         <div style='padding:20px;'>
             <h3 style='color:#4CAF50;'>Query your database using natural language</h3>
-            <p style='color:#ffffff;'>Powered by Google's Gemini AI and Streamlit, IntelliSQL makes database interaction as easy as having a conversation.</p>
+            <p style='color:#ffffff;'>Powered by Google's Gemini AI and Streamlit, QueryCraft makes database interaction as easy as having a conversation.</p>
         </div>
         """, unsafe_allow_html=True)
         
