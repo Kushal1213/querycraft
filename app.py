@@ -1,218 +1,376 @@
-import sqlite3
+# Updated `app.py` for QueryCraft
+
+````python
+import streamlit as st
 import pandas as pd
-from datetime import datetime
+import plotly.express as px
+import google.generativeai as genai
+import os
+import time
+from dotenv import load_dotenv
 
-DB_FILE = "data.db"
+from sql import (
+    init_database,
+    execute_sql,
+    get_schema,
+    save_query_history,
+    get_query_history,
+    get_dashboard_metrics,
+    get_company_distribution,
+    get_class_performance,
+    get_sample_prompts
+)
 
 
 # =========================
-# DATABASE INITIALIZATION
+# PAGE CONFIG
 # =========================
 
-def init_database():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+st.set_page_config(
+    page_title="QueryCraft AI",
+    page_icon="🚀",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-    # Students Table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS Students (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        class TEXT,
-        marks INTEGER,
-        company TEXT,
-        placement_package REAL
+
+# =========================
+# CUSTOM CSS
+# =========================
+
+st.markdown("""
+<style>
+
+.main {
+    background-color: #0e1117;
+}
+
+.stApp {
+    background: linear-gradient(to right, #0f172a, #111827);
+    color: white;
+}
+
+.block-container {
+    padding-top: 2rem;
+}
+
+.metric-card {
+    background: rgba(255,255,255,0.05);
+    padding: 20px;
+    border-radius: 15px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.query-box {
+    background: rgba(255,255,255,0.05);
+    padding: 20px;
+    border-radius: 15px;
+}
+
+.sql-box {
+    border-radius: 10px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# =========================
+# LOAD ENV VARIABLES
+# =========================
+
+load_dotenv()
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+if not GOOGLE_API_KEY:
+    st.error("❌ GOOGLE_API_KEY not found in .env file")
+    st.stop()
+
+
+# =========================
+# GEMINI CONFIG
+# =========================
+
+try:
+    genai.configure(api_key=GOOGLE_API_KEY)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+except Exception as e:
+    st.error(f"Gemini Error: {e}")
+    st.stop()
+
+
+# =========================
+# INITIALIZE DATABASE
+# =========================
+
+init_database()
+
+
+# =========================
+# AI SQL GENERATION
+# =========================
+
+
+def generate_sql(user_prompt):
+
+    schema = get_schema()
+
+    prompt = f"""
+    You are an expert SQLite SQL generator.
+
+    DATABASE SCHEMA:
+    {schema}
+
+    RULES:
+    1. Generate ONLY SQLite SQL.
+    2. Do NOT include markdown.
+    3. Do NOT include explanation.
+    4. Only generate SELECT queries.
+    5. Use correct table and column names.
+
+    USER REQUEST:
+    {user_prompt}
+    """
+
+    response = model.generate_content(prompt)
+
+    sql_query = response.text.strip()
+
+    sql_query = sql_query.replace("```sql", "")
+    sql_query = sql_query.replace("```", "")
+
+    return sql_query.strip()
+
+
+# =========================
+# SIDEBAR
+# =========================
+
+st.sidebar.title("🚀 QueryCraft AI")
+
+menu = st.sidebar.radio(
+    "Navigation",
+    [
+        "🏠 Dashboard",
+        "🤖 AI Query Assistant",
+        "📊 Analytics",
+        "🧠 Query History",
+        "📚 Database Schema"
+    ]
+)
+
+st.sidebar.markdown("---")
+
+st.sidebar.subheader("💡 Sample Prompts")
+
+sample_prompts = get_sample_prompts()
+
+for prompt in sample_prompts:
+    st.sidebar.caption(f"• {prompt}")
+
+
+# =========================
+# DASHBOARD
+# =========================
+
+if menu == "🏠 Dashboard":
+
+    st.title("🚀 QueryCraft AI Dashboard")
+    st.markdown("AI Powered Natural Language SQL Assistant")
+
+    metrics = get_dashboard_metrics()
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric("👨‍🎓 Students", metrics["total_students"])
+
+    with col2:
+        st.metric("📈 Average Marks", metrics["average_marks"])
+
+    with col3:
+        st.metric("💼 Companies", metrics["total_companies"])
+
+    with col4:
+        st.metric("💰 Highest Package", f'{metrics["highest_package"]} LPA')
+
+    st.markdown("---")
+
+    chart_col1, chart_col2 = st.columns(2)
+
+    with chart_col1:
+
+        st.subheader("🏢 Company Distribution")
+
+        company_df = get_company_distribution()
+
+        fig = px.bar(
+            company_df,
+            x="company",
+            y="total_students"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    with chart_col2:
+
+        st.subheader("📚 Class Performance")
+
+        class_df = get_class_performance()
+
+        fig2 = px.pie(
+            class_df,
+            names="class",
+            values="average_marks"
+        )
+
+        st.plotly_chart(fig2, use_container_width=True)
+
+
+# =========================
+# AI QUERY ASSISTANT
+# =========================
+
+elif menu == "🤖 AI Query Assistant":
+
+    st.title("🤖 AI SQL Assistant")
+
+    user_prompt = st.text_area(
+        "Enter your query in plain English",
+        placeholder="Example: Show top 5 students by marks"
     )
-    """)
 
-    # Query History Table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS QueryHistory (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_prompt TEXT,
-        generated_sql TEXT,
-        timestamp TEXT
+    if st.button("🚀 Generate & Execute Query"):
+
+        if not user_prompt.strip():
+            st.warning("Please enter a query.")
+
+        else:
+
+            with st.spinner("Generating SQL query using Gemini AI..."):
+
+                start_time = time.time()
+
+                sql_query = generate_sql(user_prompt)
+
+                execution_time = round(time.time() - start_time, 2)
+
+                st.subheader("🧠 Generated SQL")
+                st.code(sql_query, language="sql")
+
+                df, cols, error = execute_sql(sql_query)
+
+                save_query_history(
+                    user_prompt,
+                    sql_query,
+                    execution_time
+                )
+
+                if error:
+                    st.error(error)
+
+                else:
+
+                    st.success(f"✅ Query executed in {execution_time} sec")
+
+                    st.subheader("📊 Query Result")
+
+                    st.dataframe(
+                        df,
+                        use_container_width=True
+                    )
+
+                    csv = df.to_csv(index=False).encode('utf-8')
+
+                    st.download_button(
+                        "⬇ Download CSV",
+                        csv,
+                        "query_results.csv",
+                        "text/csv"
+                    )
+
+                    if len(df.columns) >= 2:
+
+                        st.subheader("📈 Visualization")
+
+                        numeric_cols = df.select_dtypes(include='number').columns
+
+                        if len(numeric_cols) > 0:
+
+                            chart = px.bar(
+                                df,
+                                x=df.columns[0],
+                                y=numeric_cols[0]
+                            )
+
+                            st.plotly_chart(
+                                chart,
+                                use_container_width=True
+                            )
+
+
+# =========================
+# ANALYTICS
+# =========================
+
+elif menu == "📊 Analytics":
+
+    st.title("📊 Analytics Dashboard")
+
+    company_df = get_company_distribution()
+    class_df = get_class_performance()
+
+    st.subheader("🏢 Company-wise Student Count")
+
+    fig = px.bar(
+        company_df,
+        x="company",
+        y="total_students"
     )
-    """)
 
-    # Insert sample data if empty
-    cursor.execute("SELECT COUNT(*) FROM Students")
-    count = cursor.fetchone()[0]
+    st.plotly_chart(fig, use_container_width=True)
 
-    if count == 0:
-        sample_data = [
-            ('Sijo', 'BTech', 75, 'JSW', 5.5),
-            ('Lijo', 'MTech', 69, 'TCS', 7.2),
-            ('Rijo', 'BSc', 79, 'WIPRO', 6.0),
-            ('Sibin', 'MSc', 89, 'INFOSYS', 8.1),
-            ('Dilsha', 'MCom', 99, 'Cyient', 10.5),
-            ('Arjun', 'BTech', 91, 'Google', 22.0),
-            ('Kiran', 'MBA', 85, 'Amazon', 18.0),
-            ('Meera', 'BCA', 72, 'Accenture', 4.5),
-            ('Rahul', 'MCA', 95, 'Microsoft', 25.0),
-            ('Sneha', 'BTech', 88, 'Adobe', 19.0)
-        ]
+    st.subheader("📚 Average Marks by Class")
 
-        cursor.executemany("""
-        INSERT INTO Students
-        (name, class, marks, company, placement_package)
-        VALUES (?, ?, ?, ?, ?)
-        """, sample_data)
+    fig2 = px.line(
+        class_df,
+        x="class",
+        y="average_marks",
+        markers=True
+    )
 
-    conn.commit()
-    conn.close()
-
-
-# =========================
-# SAFE SQL EXECUTION
-# =========================
-
-DANGEROUS_KEYWORDS = [
-    "drop",
-    "delete",
-    "truncate",
-    "alter",
-    "update"
-]
-
-
-def is_safe_query(query):
-    query_lower = query.lower()
-
-    for keyword in DANGEROUS_KEYWORDS:
-        if keyword in query_lower:
-            return False
-
-    return True
-
-
-def execute_sql(query):
-    if not is_safe_query(query):
-        return None, None, "❌ Unsafe query blocked!"
-
-    conn = sqlite3.connect(DB_FILE)
-
-    try:
-        df = pd.read_sql_query(query, conn)
-
-        return df, list(df.columns), None
-
-    except Exception as e:
-        return None, None, f"❌ SQL Error: {e}"
-
-    finally:
-        conn.close()
+    st.plotly_chart(fig2, use_container_width=True)
 
 
 # =========================
 # QUERY HISTORY
 # =========================
 
-def save_query_history(user_prompt, generated_sql):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+elif menu == "🧠 Query History":
 
-    cursor.execute("""
-    INSERT INTO QueryHistory
-    (user_prompt, generated_sql, timestamp)
-    VALUES (?, ?, ?)
-    """, (
-        user_prompt,
-        generated_sql,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    ))
+    st.title("🧠 Query History")
 
-    conn.commit()
-    conn.close()
+    history_df = get_query_history()
 
+    if history_df.empty:
+        st.info("No query history found.")
 
-def get_query_history():
-    conn = sqlite3.connect(DB_FILE)
-
-    df = pd.read_sql_query("""
-    SELECT * FROM QueryHistory
-    ORDER BY id DESC
-    """, conn)
-
-    conn.close()
-
-    return df
+    else:
+        st.dataframe(history_df, use_container_width=True)
 
 
 # =========================
 # DATABASE SCHEMA
 # =========================
 
-def get_schema():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+elif menu == "📚 Database Schema":
 
-    cursor.execute("""
-    SELECT name FROM sqlite_master
-    WHERE type='table'
-    """)
+    st.title("📚 Database Schema")
 
-    tables = cursor.fetchall()
+    schema = get_schema()
 
-    schema = ""
+    st.code(schema)
 
-    for table in tables:
-        table_name = table[0]
-
-        cursor.execute(f"PRAGMA table_info({table_name})")
-        columns = cursor.fetchall()
-
-        schema += f"\nTable: {table_name}\n"
-
-        for col in columns:
-            schema += f"- {col[1]} ({col[2]})\n"
-
-    conn.close()
-
-    return schema
-
-
-# =========================
-# ANALYTICS FUNCTIONS
-# =========================
-
-def get_student_metrics():
-    conn = sqlite3.connect(DB_FILE)
-
-    total_students = pd.read_sql_query(
-        "SELECT COUNT(*) as count FROM Students",
-        conn
-    ).iloc[0]["count"]
-
-    avg_marks = pd.read_sql_query(
-        "SELECT AVG(marks) as avg_marks FROM Students",
-        conn
-    ).iloc[0]["avg_marks"]
-
-    highest_package = pd.read_sql_query(
-        "SELECT MAX(placement_package) as max_package FROM Students",
-        conn
-    ).iloc[0]["max_package"]
-
-    total_companies = pd.read_sql_query(
-        "SELECT COUNT(DISTINCT company) as companies FROM Students",
-        conn
-    ).iloc[0]["companies"]
-
-    conn.close()
-
-    return {
-        "total_students": total_students,
-        "avg_marks": round(avg_marks, 2),
-        "highest_package": highest_package,
-        "total_companies": total_companies
-    }
-
-
-# =========================
-# AUTO INITIALIZE DATABASE
-# =========================
-
-if __name__ == "__main__":
-    init_database()
-    print("✅ Database initialized successfully.")
+````
