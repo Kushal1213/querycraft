@@ -74,9 +74,33 @@ except Exception as e:
 
 DB_FILE = "data.db"
 
+# Delete old incompatible database automatically
+if os.path.exists(DB_FILE):
+
+    try:
+        conn_test = sqlite3.connect(DB_FILE)
+        cursor_test = conn_test.cursor()
+
+        cursor_test.execute("PRAGMA table_info(Students)")
+        columns = cursor_test.fetchall()
+
+        column_names = [col[1] for col in columns]
+
+        conn_test.close()
+
+        # If old schema exists -> recreate database
+        if "package" not in column_names:
+
+            os.remove(DB_FILE)
+
+    except:
+        os.remove(DB_FILE)
+
+# Create fresh connection
 conn = sqlite3.connect(DB_FILE)
 cursor = conn.cursor()
 
+# Create Students table
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS Students (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,6 +112,7 @@ CREATE TABLE IF NOT EXISTS Students (
 )
 """)
 
+# Insert sample data only if table empty
 cursor.execute("SELECT COUNT(*) FROM Students")
 
 count = cursor.fetchone()[0]
@@ -101,7 +126,10 @@ if count == 0:
         ('Sibin', 'MSc', 89, 'INFOSYS', 8.1),
         ('Dilsha', 'MCom', 99, 'Cyient', 10.5),
         ('Arjun', 'BTech', 91, 'Google', 22.0),
-        ('Rahul', 'MCA', 95, 'Microsoft', 25.0)
+        ('Rahul', 'MCA', 95, 'Microsoft', 25.0),
+        ('Sneha', 'BTech', 88, 'Adobe', 19.0),
+        ('Kiran', 'MBA', 84, 'Amazon', 18.5),
+        ('Neha', 'MCA', 92, 'Meta', 30.0)
     ]
 
     cursor.executemany("""
@@ -111,7 +139,6 @@ if count == 0:
     """, sample_data)
 
 conn.commit()
-
 # =========================
 # AI SQL GENERATION
 # =========================
