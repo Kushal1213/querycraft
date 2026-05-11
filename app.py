@@ -4,6 +4,7 @@ import sqlite3
 import google.generativeai as genai
 from dotenv import load_dotenv
 # Auto-create database if it doesn't exist
+st.write(os.getenv("GOOGLE_API_KEY")[:8])  # shows first 8 chars only
 if not os.path.exists("data.db"):
     import sqlite3
     conn = sqlite3.connect("data.db")
