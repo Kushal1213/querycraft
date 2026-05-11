@@ -61,8 +61,8 @@ if not GOOGLE_API_KEY:
 try:
     genai.configure(api_key=GOOGLE_API_KEY)
 
-    # WORKING MODEL
-    model = genai.GenerativeModel("gemini-1.5-pro")
+    # Updated working model
+    model = genai.GenerativeModel("gemini-2.0-flash")
 
 except Exception as e:
     st.error(f"Gemini setup error: {e}")
