@@ -3,6 +3,20 @@ import os
 import sqlite3
 import google.generativeai as genai
 from dotenv import load_dotenv
+# Auto-create database if it doesn't exist
+if not os.path.exists("data.db"):
+    import sqlite3
+    conn = sqlite3.connect("data.db")
+    cursor = conn.cursor()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS Students (
+        name VARCHAR(30), class VARCHAR(10), marks INT, company VARCHAR(30))""")
+    cursor.executemany("INSERT INTO Students VALUES (?,?,?,?)", [
+        ('Sijo','BTech',75,'JSW'), ('Lijo','MTech',69,'TCS'),
+        ('Rijo','BSc',79,'WIPRO'), ('Sibin','MSc',89,'INFOSYS'),
+        ('Dilsha','MCom',99,'Cyient')
+    ])
+    conn.commit()
+    conn.close()
 
 # Load API key
 load_dotenv()
