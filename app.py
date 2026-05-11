@@ -539,12 +539,17 @@ if st.session_state['db_path']:
         st.rerun()
 
 # --- Footer ---
+# --- Footer ---
 st.markdown("""
-<div class='footer' style="font-size: 16px;">
+<div class='footer' style="font-size:16px; text-align:center; margin-top:30px;">
+    🚀 <b>QueryCraft AI</b><br>
     Built with ❤️ by 
-    <a href="https://www.instagram.com/rohith_kumar.6/" target="_blank" style="color:#1976d2; font-weight:bold; background:rgba(25,118,210,0.08); padding:2px 6px; border-radius:6px; text-decoration:none;">
-        Rohith
-    </a>
-    using Streamlit, Gemini LLM, and SQLite
+    <span style="color:#00ffff; font-weight:bold;">
+        Kushal Choudhary
+    </span><br><br>
+    
+    <span style="color:#999;">
+        Powered by Streamlit • Gemini AI • SQLite
+    </span>
 </div>
 """, unsafe_allow_html=True)
