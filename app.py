@@ -6,11 +6,20 @@ from dotenv import load_dotenv
 
 # Load API key FIRST
 load_dotenv()
+
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+if not GOOGLE_API_KEY:
+    st.error("Google API Key not found!")
+    st.stop()
+
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# Initialize Gemini model
-model = genai.GenerativeModel("gemini-1.5-flash")
+try:
+    model = genai.GenerativeModel("gemini-1.5-flash")
+except Exception as e:
+    st.error(f"Gemini Model Error: {e}")
+    st.stop()
 
 # Auto-create database if it doesn't exist
 if not os.path.exists("data.db"):
