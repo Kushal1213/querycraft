@@ -1,7 +1,7 @@
 
-# 🌟 TextToSQLConvertor: 
+# 🌟 Querycraft: 
 
-TextToSQLConvertor is a powerful and intuitive application that bridges the gap between natural language and SQL. It empowers users—whether SQL novices or seasoned analysts—to generate, optimize, and execute SQL queries using natural language input, all powered by Google's Gemini Pro LLM and a sleek Streamlit-based interface.
+Querycraft is a powerful and intuitive application that bridges the gap between natural language and SQL. It empowers users—whether SQL novices or seasoned analysts—to generate, optimize, and execute SQL queries using natural language input, all powered by Google's Gemini Pro LLM and a sleek Streamlit-based interface.
 
 ## Features
 ### Intelligent Query Assistance
